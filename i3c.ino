@@ -64,7 +64,7 @@ void setup()
   if(!i2c_bus_test())
       while(1);
 
-  //find all i2c devices, dump (some of) their register contents
+  //find all i2c devices, dump their register contents
   smprintf("Scanning I2C bus.....\n");
   i2c_scan(true);
 
