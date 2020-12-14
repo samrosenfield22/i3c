@@ -12,4 +12,5 @@ Most i2c scanner code just iterates through the range of 7-bit i2c addresses and
 * Connect SDA, SCL and GND between the Arduino and the device under test
 * Open the serial monitor (Ctrl+Shift+M)
 * Run the code
+
 That's it!
