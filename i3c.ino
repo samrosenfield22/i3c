@@ -35,7 +35,7 @@ void hexdump(uint8_t *data, bool *stable, uint16_t end_addr);
 bool warn_prompt(const char *str);
 
 //
-/*i2cdev TPS65023 =
+i2cdev TPS65023 =
 {
     "TPS65023",
     0x48,
