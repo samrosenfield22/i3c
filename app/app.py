@@ -3,6 +3,12 @@
 import serial
 import serial.tools.list_ports
 import time
+from enum import Enum
+
+ErrorMessages = [
+	"either a device is pulling SDA/SCL low, or the line(s) are disconnected!",
+	"read abnormal bus voltages.\nis something pulling the bus low? are there pullup resistors?"
+]
 
 #looks for a port whose manufacturer string contains 'Arduino'. returns that port, or an empty list if none is found
 def get_duiner_port():
@@ -26,7 +32,7 @@ def connect_to_duiner():
 	#open it
 	print('opening port... ', end="")
 	try:
-		ser = serial.Serial(duiner.name, 9600)
+		ser = serial.Serial(duiner.name, 9600, timeout=5)
 	except:
 		print('couldn\'t open the port! is the arduino serial monitor open?')
 		exit()
@@ -46,6 +52,13 @@ def start_scan(ser):
 	return (response == b'ok\r\n')
 	#return False
 
+def display_error(mes):
+	errcode = int(mes.strip('err '))
+	if(errcode >= len(ErrorMessages)):
+		print('error w invalid err code')
+	else:
+		print(ErrorMessages[errcode])
+
 
 #############################################################
 
@@ -54,9 +67,9 @@ if(not start_scan(ser)):
 	print('problem connecting to arduino')
 	exit()
 
-#ser.write(b'go duiner go\n')
-#ser.write(b'a')
-#print(ser.readline().decode())
-print('did it!\n')
-print(ser.readline().decode())
+resp = ser.readline().decode()
+if(resp.find("err")!=-1):
+	display_error(resp)
+	exit()
+
 ser.close()

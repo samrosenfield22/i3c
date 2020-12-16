@@ -24,6 +24,13 @@ typedef struct i2cdev_s
     uint8_t *regs;
 } i2cdev;
 
+enum ERRCODE
+{
+    ERR_BUS_LINES_LO = 0,
+    ERR_ABNORMAL_BUS_VOLTAGES = 1,
+
+};
+
 //
 bool i2c_bus_test(void);
 void i2c_scan(bool dump);
@@ -34,6 +41,7 @@ uint8_t i2c_read_reg(uint8_t sladdr, uint8_t regaddr);
 bool i2c_check_reg_val(uint8_t *v, uint8_t sladdr, uint8_t reg, uint8_t expected);
 void hexdump(uint8_t *data, bool *stable, uint16_t end_addr);
 bool warn_prompt(const char *str);
+void error(ERRCODE err);
 
 //
 i2cdev TPS65023 =
@@ -64,19 +72,9 @@ void setup()
   Wire.begin();
   Serial.begin(9600);
   delay(100);
-
-  /*char serbuf[20];
-  char *sb = serbuf;
-  while(!Serial.available());
-  while(Serial.available())
-  {
-    *sb = Serial.read();
-    sb++;
-  }
-  *sb = '\0';*/
+  
   while(!Serial.available());
   String startcmd = Serial.readString();
-  //Serial.println(startcmd);
   if(startcmd != "go duiner go\n")
   {
     Serial.println("bad start cmd, instead i got");
@@ -84,7 +82,6 @@ void setup()
     while(1);
   }
   Serial.println("ok");
-  smprintf("starting scan...\n");
   digitalWrite(13, HIGH);
 
   //electrical test
@@ -92,7 +89,7 @@ void setup()
       while(1);
 
   //find all i2c devices, dump their register contents
-  smprintf("Scanning I2C bus.....\n");
+  Serial.println("Scanning I2C bus.....");
   i2c_scan(true);
 
   //
@@ -117,8 +114,9 @@ bool i2c_bus_test(void)
     {
       if(digitalRead(SDA_PIN)==LOW || digitalRead(SCL_PIN)==LOW)
       {
-        smprintf("error: either a device is pulling SDA/SCL low, or the line(s) are disconnected!\n");
-        return false;
+        //smprintf("error: either a device is pulling SDA/SCL low, or the line(s) are disconnected!\n");
+        error(ERR_BUS_LINES_LO);
+        //return false;
       }
     }
 
@@ -139,8 +137,9 @@ bool i2c_bus_test(void)
         return true;
     else
     {
-      smprintf("read abnormal bus volatges (sda=%f, scl=%f).\nis something pulling the bus low? are there pullup resistors?\n",
-          ((double)sda_lvl)/1024, ((double)scl_lvl)/1024);
+      //smprintf("read abnormal bus volatges (sda=%f, scl=%f).\nis something pulling the bus low? are there pullup resistors?\n",
+      //    ((double)sda_lvl)/1024, ((double)scl_lvl)/1024);
+      error(ERR_ABNORMAL_BUS_VOLTAGES);
       return false;
     }
 }
@@ -291,6 +290,12 @@ void hexdump(uint8_t *data, bool *stable, uint16_t end_addr)
         else
             smprintf("?? ");
     }
+}
+
+void error(ERRCODE err)
+{
+  Serial.println("err " + String(err));
+  while(1);
 }
 
 bool warn_prompt(const char *str)
