@@ -10,6 +10,10 @@ ErrorMessages = [
 	"read abnormal bus voltages.\nis something pulling the bus low? are there pullup resistors?"
 ]
 
+WarnMessages = [
+	"Detected 3V3 I2C bus; this Arduino uses 5V logic. Is this what you want?"
+]
+
 #looks for a port whose manufacturer string contains 'Arduino'. returns that port, or an empty list if none is found
 def get_duiner_port():
 	ports = serial.tools.list_ports.comports()
@@ -34,7 +38,7 @@ def connect_to_duiner():
 	try:
 		ser = serial.Serial(duiner.name, 9600, timeout=5)
 	except:
-		print('couldn\'t open the port! is the arduino serial monitor open?')
+		print('couldn\'t open the port! if the arduino serial monitor is open, close it and try again')
 		exit()
 	if(ser.is_open):
 		ser.close()
@@ -47,29 +51,44 @@ def connect_to_duiner():
 def start_scan(ser):
 	ser.write(b'go duiner go\n')
 	response = ser.readline()
-	#if(not (response == 'ok\n'))
-	#print('got response:', response)
 	return (response == b'ok\r\n')
-	#return False
 
-def display_error(mes):
-	errcode = int(mes.strip('err '))
-	if(errcode >= len(ErrorMessages)):
-		print('error w invalid err code')
+def getMessageFromSpec(spec, unwanted, mes_list):
+	code = int(spec.strip(unwanted))
+	if(code >= len(mes_list)):
+		print('invalid message code (', spec, ')')
+		exit()
+	return mes_list[code]
+
+#if it starts with "err", it's an error
+#if it starts with "signature", etc etc
+def handle_response(resp):
+	if(resp.find("err")==0):
+		errmes = getMessageFromSpec(resp, "err ", ErrorMessages)
+		print('\nerror:', errmes)
+		exit()
+	elif(resp.find("warn")==0):
+		warnmes = getMessageFromSpec(resp, "warn ", WarnMessages)
+		print('\n---warning: ', warnmes, ' ---')
+		confirm = input('press \'y\' to continue   ')
+		if(confirm[0] == 'y'):
+			print('confirmed!')
+			ser.write(b'ok\n')
+		else:
+			exit(0)
+	#elif(resp.find("signature")==0)
 	else:
-		print(ErrorMessages[errcode])
-
+		print(resp)
 
 #############################################################
 
 ser = connect_to_duiner()
 if(not start_scan(ser)):
-	print('problem connecting to arduino')
+	print('arduino didn\'t give the expect respond to \"go duiner go\". maybe it has the wrong firmware loaded?')
 	exit()
 
-resp = ser.readline().decode()
-if(resp.find("err")!=-1):
-	display_error(resp)
-	exit()
+while 1:
+	resp = ser.readline().decode()
+	handle_response(resp)
 
 ser.close()

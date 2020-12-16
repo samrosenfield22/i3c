@@ -16,19 +16,24 @@
 char printbuf[161];
 #define smprintf(...) do {sprintf(printbuf, __VA_ARGS__); Serial.print(printbuf);} while(0)
 
-typedef struct i2cdev_s
+/*typedef struct i2cdev_s
 {
     const char *name;
     uint8_t addr;
     uint8_t whoami_ct, config_ct, write_ct;
     uint8_t *regs;
-} i2cdev;
+} i2cdev;*/
 
 enum ERRCODE
 {
-    ERR_BUS_LINES_LO = 0,
-    ERR_ABNORMAL_BUS_VOLTAGES = 1,
+    ERRC_BUS_LINES_LO = 0,
+    ERRC_ABNORMAL_BUS_VOLTAGES = 1,
 
+};
+
+enum WARNCODE
+{
+    WARNC_WRONG_LOGIC_LVL = 0,
 };
 
 //
@@ -40,11 +45,11 @@ void i2c_write_byte_stream(uint8_t sladdr, int len, uint8_t *bytes);
 uint8_t i2c_read_reg(uint8_t sladdr, uint8_t regaddr);
 bool i2c_check_reg_val(uint8_t *v, uint8_t sladdr, uint8_t reg, uint8_t expected);
 void hexdump(uint8_t *data, bool *stable, uint16_t end_addr);
-bool warn_prompt(const char *str);
+//bool warn_prompt(const char *str);
 void error(ERRCODE err);
 
 //
-i2cdev TPS65023 =
+/*i2cdev TPS65023 =
 {
     "TPS65023",
     0x48,
@@ -53,15 +58,7 @@ i2cdev TPS65023 =
       0x00, 0x23, //whoami
       0x05, 0x08, 0x06, 0x80  //config
     }
-};
-
-typedef enum statuscode_e
-{
-  SUCCESS,
-  FAIL_DEV_NOT_UP,
-  FAIL_WHOAMI
-} statuscode;
-
+};*/
 void setup()
 {
 
@@ -76,11 +73,7 @@ void setup()
   while(!Serial.available());
   String startcmd = Serial.readString();
   if(startcmd != "go duiner go\n")
-  {
-    Serial.println("bad start cmd, instead i got");
-    Serial.println(startcmd);
-    while(1);
-  }
+      while(1);
   Serial.println("ok");
   digitalWrite(13, HIGH);
 
@@ -91,11 +84,6 @@ void setup()
   //find all i2c devices, dump their register contents
   Serial.println("Scanning I2C bus.....");
   i2c_scan(true);
-
-  //
-  //statuscode stat = i2c_bringup_device(&TPS65023);
-  //smprintf("%s\n", (stat==SUCCESS)? "mission complete!" : "epic fail");
-  
 
   while(1);
 }
@@ -115,7 +103,7 @@ bool i2c_bus_test(void)
       if(digitalRead(SDA_PIN)==LOW || digitalRead(SCL_PIN)==LOW)
       {
         //smprintf("error: either a device is pulling SDA/SCL low, or the line(s) are disconnected!\n");
-        error(ERR_BUS_LINES_LO);
+        error(ERRC_BUS_LINES_LO);
         //return false;
       }
     }
@@ -128,10 +116,11 @@ bool i2c_bus_test(void)
     (LOGIC_MIN_THRESH_3V3 < scl_lvl && scl_lvl < LOGIC_MAX_THRESH_3V3) )
     {
       #ifdef WARN_FOR_3V3_LOGIC
-          return warn_prompt("Detected 3V3 I2C bus; this Arduino uses 5V logic. Is this what you want?");
-      #else
-          return true;
+          //return warn_prompt("Detected 3V3 I2C bus; this Arduino uses 5V logic. Is this what you want?");
+          warn(WARNC_WRONG_LOGIC_LVL);
+      //#else    
       #endif
+      return true;
     }
     else if(LOGIC_MIN_THRESH_5V < sda_lvl && LOGIC_MIN_THRESH_5V < scl_lvl)
         return true;
@@ -139,7 +128,7 @@ bool i2c_bus_test(void)
     {
       //smprintf("read abnormal bus volatges (sda=%f, scl=%f).\nis something pulling the bus low? are there pullup resistors?\n",
       //    ((double)sda_lvl)/1024, ((double)scl_lvl)/1024);
-      error(ERR_ABNORMAL_BUS_VOLTAGES);
+      error(ERRC_ABNORMAL_BUS_VOLTAGES);
       return false;
     }
 }
@@ -190,40 +179,6 @@ void i2c_scan(bool dump)
       smprintf("\n\nfound %d devices\n\n", total);
   else
       smprintf("no devices found!\n\n");
-}
-
-statuscode i2c_bringup_device(i2cdev *dev)
-{
-  smprintf("bringing up device \'%s\'\n", dev->name);
-
-  //check device
-  if(!i2c_is_device_up(dev->addr))
-  {
-    smprintf("device is not up at slave addr 0x%02X\n", dev->addr);
-    return FAIL_DEV_NOT_UP;
-  }
-  
-  //check whoami regs
-  if(dev->whoami_ct == 0)
-      smprintf("--- warning: no who-am-i registers specified; no way to know if this is the correct device ---");
-  for(int i=0; i<dev->whoami_ct; i+=2)
-  {
-    uint8_t rval;
-    if(!i2c_check_reg_val(&rval, dev->addr, dev->regs[i], dev->regs[i+1]))
-    {
-      smprintf("failed who-am-i reading addr 0x%02X (expected 0x%02X, read 0x%02X)\n", dev->regs[i], dev->regs[i+1], rval);
-      return FAIL_WHOAMI;
-    }
-    smprintf("whoami passed!\n");
-  }
-
-  //set config reg values
-  for(int i=0; i<dev->config_ct; i+=2)
-  {
-    
-  }
-
-  return SUCCESS;
 }
 
 bool i2c_is_device_up(uint8_t sladdr)
@@ -298,11 +253,20 @@ void error(ERRCODE err)
   while(1);
 }
 
-bool warn_prompt(const char *str)
+void warn(WARNCODE warn)
+{
+  Serial.println("warn " + String(warn));
+  while(!Serial.available());
+  String warnresp = Serial.readString();
+  if(warnresp != "ok\n")
+      while(1);
+}
+
+/*bool warn_prompt(const char *str)
 {
   smprintf("--- warning: %s ---\n", str);
   smprintf("enter \'y\' to continue...\n");
 
   while(!Serial.available());
   return Serial.read()=='y';
-}
+}*/
