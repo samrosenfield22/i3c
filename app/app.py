@@ -34,7 +34,7 @@ def connect_to_duiner():
 	print('arduino found at port:', duiner.name)
 
 	#open it
-	print('opening port... ', end="")
+	print('opening port... ', end="", flush=True)
 	try:
 		ser = serial.Serial(duiner.name, 9600, timeout=5)
 	except:
@@ -54,11 +54,41 @@ def start_scan(ser):
 	return (response == b'ok\r\n')
 
 def getMessageFromSpec(spec, unwanted, mes_list):
-	code = int(spec.strip(unwanted))
+	#code = int(spec.strip(unwanted))
+	code = int(spec.removeprefix(unwanted))
 	if(code >= len(mes_list)):
 		print('invalid message code (', spec, ')')
 		exit()
 	return mes_list[code]
+
+def handle_signature(sig):
+	sig = sig.removeprefix("signature ")
+	sig = sig.removesuffix("\r\n")
+
+	hbytes = [sig[i:i+2] for i in range(0, len(sig), 2)]
+	sladdr = int(hbytes[0], 16)
+	print('\nfound slave device at address 0x%02X:\n' % sladdr, end="")
+	#print('0x%02X' % sladdr)
+	hbytes = hbytes[1:len(hbytes)]
+
+	#print header
+	print("\t", end="")
+	for i in range(0, 0x10):
+		if(i==8):
+			print("  ", end="")
+		print('%1X  ' % i, end="")
+
+	#print hex
+	for i,reg in enumerate(hbytes):
+		if(i % 16 == 0):
+			print("\n 0x%02X\t" % i, end="")
+		elif(i % 8 == 0):
+			print("  ", end="")
+
+		if(reg == "??"):
+			print(reg, '', end="")
+		else:
+			print('%02X ' % int(reg, 0x10), end="")
 
 #if it starts with "err", it's an error
 #if it starts with "signature", etc etc
@@ -76,7 +106,8 @@ def handle_response(resp):
 			ser.write(b'ok\n')
 		else:
 			exit(0)
-	#elif(resp.find("signature")==0)
+	elif(resp.find("signature")==0):
+		handle_signature(resp)
 	else:
 		print(resp)
 

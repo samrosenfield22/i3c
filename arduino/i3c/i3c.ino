@@ -37,16 +37,19 @@ enum WARNCODE
 };
 
 //
-bool i2c_bus_test(void);
-void i2c_scan(bool dump);
+void i2c_bus_test(void);
+void i2c_scan(void);
 bool i2c_is_device_up(uint8_t sladdr);
 void i2c_write_reg(uint8_t sladdr, uint8_t regaddr, uint8_t val);
 void i2c_write_byte_stream(uint8_t sladdr, int len, uint8_t *bytes);
 uint8_t i2c_read_reg(uint8_t sladdr, uint8_t regaddr);
 bool i2c_check_reg_val(uint8_t *v, uint8_t sladdr, uint8_t reg, uint8_t expected);
-void hexdump(uint8_t *data, bool *stable, uint16_t end_addr);
+//void hexdump(uint8_t *data, bool *stable, uint16_t end_addr);
+void send_signature(uint8_t sladdr, uint8_t *regmap, bool *stable, uint16_t end_addr);
 //bool warn_prompt(const char *str);
+void print_hex_leading(uint8_t b);
 void error(ERRCODE err);
+void warn(WARNCODE warn);
 
 //
 /*i2cdev TPS65023 =
@@ -77,13 +80,17 @@ void setup()
   Serial.println("ok");
   digitalWrite(13, HIGH);
 
+  //////
+  /*uint8_t regmap[MAX_REGISTERS];
+  bool stable[MAX_REGISTERS];
+  stable[8] = false;
+  send_signature(0xDE, regmap, stable, 0x20);*/
+
   //electrical test
-  if(!i2c_bus_test())
-      while(1);
+  i2c_bus_test();
 
   //find all i2c devices, dump their register contents
-  Serial.println("Scanning I2C bus.....");
-  i2c_scan(true);
+  i2c_scan();
 
   while(1);
 }
@@ -95,17 +102,13 @@ void loop()
 
 //////////////////////////////////////////////////////////
 
-bool i2c_bus_test(void)
+void i2c_bus_test(void)
 {
     //SDA/SCL should always idle high
     for(int i=0; i<1000; i++)
     {
       if(digitalRead(SDA_PIN)==LOW || digitalRead(SCL_PIN)==LOW)
-      {
-        //smprintf("error: either a device is pulling SDA/SCL low, or the line(s) are disconnected!\n");
-        error(ERRC_BUS_LINES_LO);
-        //return false;
-      }
+          error(ERRC_BUS_LINES_LO);
     }
 
     //check the high logic level
@@ -116,69 +119,62 @@ bool i2c_bus_test(void)
     (LOGIC_MIN_THRESH_3V3 < scl_lvl && scl_lvl < LOGIC_MAX_THRESH_3V3) )
     {
       #ifdef WARN_FOR_3V3_LOGIC
-          //return warn_prompt("Detected 3V3 I2C bus; this Arduino uses 5V logic. Is this what you want?");
           warn(WARNC_WRONG_LOGIC_LVL);
-      //#else    
       #endif
-      return true;
+      return;
     }
     else if(LOGIC_MIN_THRESH_5V < sda_lvl && LOGIC_MIN_THRESH_5V < scl_lvl)
-        return true;
+        return;
     else
     {
-      //smprintf("read abnormal bus volatges (sda=%f, scl=%f).\nis something pulling the bus low? are there pullup resistors?\n",
-      //    ((double)sda_lvl)/1024, ((double)scl_lvl)/1024);
       error(ERRC_ABNORMAL_BUS_VOLTAGES);
-      return false;
     }
 }
 
 //if dump is true, this reads the first n registers of each device found and prints them
-void i2c_scan(bool dump)
+void i2c_scan(void)
 {
-  int total = 0;
+  //int total = 0;
   for(int a=1; a<0x80; a++)
   {
     if(i2c_is_device_up(a))
     {
-         smprintf("\n\nI2C device found at address 0x%02X (%d)\n", a, a);
-         total++;
+         //smprintf("\n\nI2C device found at address 0x%02X (%d)\n", a, a);
+         //total++;
 
-         if(dump)
-         {
-            uint8_t regbuf[MAX_REGISTERS];
+            uint8_t regmap[MAX_REGISTERS];
             bool stable[MAX_REGISTERS];
             for(int i=0; i<MAX_REGISTERS; i++)
                 stable[i] = true;
             
             //scan registers
             for(int i=0; i<MAX_REGISTERS; i++)
-                regbuf[i] = i2c_read_reg(a, i);
+                regmap[i] = i2c_read_reg(a, i);
             for(int s=0; s<REGISTER_SCAN_CT-1; s++)
             {
                 delay(REGISTER_SCAN_DELAY);
                 for(int i=0; i<MAX_REGISTERS; i++)
                 {
-                    if(i2c_read_reg(a, i) != regbuf[i])
+                    if(i2c_read_reg(a, i) != regmap[i])
                         stable[i] = false;
                 }
             }
 
             //count registers (assumes that unused registers have the value 0xFF)
             int reg_cnt;
-            for(reg_cnt=MAX_REGISTERS-1; regbuf[reg_cnt]!=0xFF; reg_cnt--);
+            for(reg_cnt=MAX_REGISTERS-1; regmap[reg_cnt]!=0xFF; reg_cnt--);
             reg_cnt |= 0b1111; reg_cnt++;  //round up to the next multiple of 16
 
             //dump registers
-            hexdump(regbuf, stable, reg_cnt);
-         }
+            send_signature(a, regmap, stable, reg_cnt);
+            //hexdump(regmap, stable, reg_cnt);
     }
   }
 
-  if(total)
+  /*if(total)
       smprintf("\n\nfound %d devices\n\n", total);
   else
-      smprintf("no devices found!\n\n");
+      smprintf("no devices found!\n\n");*/
 }
 
 bool i2c_is_device_up(uint8_t sladdr)
@@ -224,7 +220,7 @@ uint8_t i2c_read_reg(uint8_t sladdr, uint8_t reg)
   return b;
 }
 
-void hexdump(uint8_t *data, bool *stable, uint16_t end_addr)
+/*void hexdump(uint8_t *data, bool *stable, uint16_t end_addr)
 {
     //print columns
     smprintf("\t\t");
@@ -245,6 +241,30 @@ void hexdump(uint8_t *data, bool *stable, uint16_t end_addr)
         else
             smprintf("?? ");
     }
+}*/
+
+void send_signature(uint8_t sladdr, uint8_t *regmap, bool *stable, uint16_t end_addr)
+{
+    Serial.print("signature ");
+    print_hex_leading(sladdr);
+
+    for(uint16_t i=0; i<end_addr; i++)
+    {
+        if(stable[i])
+        {
+            print_hex_leading(regmap[i]);
+        }
+        else
+            Serial.print("??");
+    }
+    Serial.println("");
+}
+
+//prints a byte in hex, appending the leading 0
+void print_hex_leading(uint8_t b)
+{
+    if(b < 0x10)  Serial.print("0");
+    Serial.print(b, HEX);
 }
 
 void error(ERRCODE err)

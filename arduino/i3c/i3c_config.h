@@ -11,7 +11,7 @@
 #define WARN_FOR_3V3_LOGIC
 
 //each register is read multiple times; if the value changed, the register is marked as "unstable". this determines the number of scans.
-#define REGISTER_SCAN_CT (3)
+#define REGISTER_SCAN_CT (5)
 
 //duration (in milliseconds) to delay between each register scan
 #define REGISTER_SCAN_DELAY (100)
