@@ -4,12 +4,13 @@
 
 #include "i3c_config.h"
 
+#define SDA_PIN (PC4)
+#define SCL_PIN (PC5)
+
 #define LOGIC_MIN_THRESH_5V (922) //for now, this is 4.5V -- really should check the i2c spec
 #define LOGIC_MAX_THRESH_3V3 (743)  //3.3 * 1.1
 #define LOGIC_MIN_THRESH_3V3 (608)  //3.3 * 0.9
 
-#define SDA_PIN (PC4)
-#define SCL_PIN (PC5)
 
 //serial monitor printf
 char printbuf[161];
@@ -55,10 +56,36 @@ typedef enum statuscode_e
 
 void setup()
 {
+
+  pinMode(13, OUTPUT);
+  digitalWrite(13, LOW);
+  
   //init stuff
   Wire.begin();
   Serial.begin(9600);
   delay(100);
+
+  /*char serbuf[20];
+  char *sb = serbuf;
+  while(!Serial.available());
+  while(Serial.available())
+  {
+    *sb = Serial.read();
+    sb++;
+  }
+  *sb = '\0';*/
+  while(!Serial.available());
+  String startcmd = Serial.readString();
+  //Serial.println(startcmd);
+  if(startcmd != "go duiner go\n")
+  {
+    Serial.println("bad start cmd, instead i got");
+    Serial.println(startcmd);
+    while(1);
+  }
+  Serial.println("ok");
+  smprintf("starting scan...\n");
+  digitalWrite(13, HIGH);
 
   //electrical test
   if(!i2c_bus_test())
@@ -90,7 +117,7 @@ bool i2c_bus_test(void)
     {
       if(digitalRead(SDA_PIN)==LOW || digitalRead(SCL_PIN)==LOW)
       {
-        smprintf("a device is pulling SDA/SCL low!\n");
+        smprintf("error: either a device is pulling SDA/SCL low, or the line(s) are disconnected!\n");
         return false;
       }
     }
@@ -269,7 +296,7 @@ void hexdump(uint8_t *data, bool *stable, uint16_t end_addr)
 bool warn_prompt(const char *str)
 {
   smprintf("--- warning: %s ---\n", str);
-  smprintf("enter \'y\' to continue   ");
+  smprintf("enter \'y\' to continue...\n");
 
   while(!Serial.available());
   return Serial.read()=='y';
