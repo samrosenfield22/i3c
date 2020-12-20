@@ -72,7 +72,7 @@ void setup()
   stable[8] = true;
   regmap[8] = 0x77;
   send_signature(0x73, regmap, stable, 0x20);
-  send_signature(0xFF, regmap, stable, 0x20);
+  send_signature(0x44, regmap, stable, 0x20);
   Serial.println(DONE_RESP);
 
 

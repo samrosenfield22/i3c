@@ -21,10 +21,11 @@ class I2cdev:
 		self.config = config
 		self.action = action	#action shouldn't really have a default
 
+		global DEVICE_LIBRARY
 		DEVICE_LIBRARY.append(self)
 
 	def printinfo(self):
-		print('{} ({}) @ 0x%02x'.format(self.name, self.dtype, self.sladdr))
+		print('{} ({}) @ 0x%02x'.format(self.name, self.dtype) % self.sladdr)
 
 def build_dummy_library():
 	I2cdev('TMP103', 'temp sensor', 0x48, [[0x10,0xF5], [0x12,0x03]])
@@ -36,4 +37,10 @@ def prepare_library():
 	global DEVICE_LIBRARY
 	DEVICE_LIBRARY = [list(filter(lambda n:n.sladdr == i, DEVICE_LIBRARY)) for i in range(0,0x80)]
 	#pdb.set_trace()
-	print(DEVICE_LIBRARY)
+	#print(id(DEVICE_LIBRARY))
+	#print(DEVICE_LIBRARY)
+	#print('\n\n')
+
+def get_devices_matching_sladdr(sladdr):
+	assert(len(DEVICE_LIBRARY) > sladdr)
+	return DEVICE_LIBRARY[sladdr]

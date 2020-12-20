@@ -5,6 +5,7 @@ import pdb
 from arduino import *
 from signature import * 
 from i2cdev import *
+#import i2cdev as i2c
 
 
 #############################################################
@@ -14,8 +15,10 @@ from i2cdev import *
 #
 build_dummy_library()
 prepare_library()
-print(DEVICE_LIBRARY)
-pdb.set_trace()
+#global DEVICE_LIBRARY
+#print(id(i2c.DEVICE_LIBRARY))
+#print(i2c.DEVICE_LIBRARY)
+#pdb.set_trace()
 
 #connect to the arduino, command it to start scanning
 duiner = Arduino()
@@ -35,14 +38,15 @@ while 1:
 
 #this is where we'll identify each device. for now just dump them all
 #pdb.set_trace()
-print('\nfound {} devices:'.format(len(all_devices)))
+print('\nScan complete!')
+print('Found {} devices:'.format(len(all_devices)))
 for i,sig in enumerate(all_devices):	#works with i,dev, but not with just dev ??
 	#sig.dump()
 	if(sig.identify()):
-		print('Device {}: ', i)
+		print('Device {}: '.format(i), end="")
 		sig.printinfo()
 	else:
-		print('Device {}: unidentified', i)
+		print('Device {}: unidentified, '.format(i), end="")
 		sig.hexdump()
 
 print('all done!')

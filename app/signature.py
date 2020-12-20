@@ -1,6 +1,7 @@
 #signature class
 
 from i2cdev import *
+#import i2cdev as i2c
 
 all_devices = []
 
@@ -22,11 +23,13 @@ class Signature:
 		#self.hexdump()	#for now
 		#return
 
-		global DEVICE_LIBRARY
-		print(len(DEVICE_LIBRARY))
-		print('searching for device w addr {} ({} total devices)'.format(self.sladdr, len(DEVICE_LIBRARY[self.sladdr])))
-		for dev in enumerate(DEVICE_LIBRARY[self.sladdr]):
-			if(__match(self, dev)):
+		#global DEVICE_LIBRARY
+		#print(len(DEVICE_LIBRARY))
+		#print('searching for device w addr {} ({} total devices)'.format(self.sladdr, len(DEVICE_LIBRARY[self.sladdr])))
+		#for dev in enumerate(DEVICE_LIBRARY[self.sladdr]):
+		candidates = get_devices_matching_sladdr(self.sladdr)
+		for i,dev in enumerate(candidates):
+			if(self.__match(dev)):
 				self.device = dev
 				return True
 			else:
@@ -37,7 +40,7 @@ class Signature:
 		assert self.sladdr == dev.sladdr
 
 		#match whoami regs
-		for whoami in enumerate(dev.whoami):
+		for i,whoami in enumerate(dev.whoami):
 			addr = whoami[0]
 			if (self.regs[addr] != whoami[1]):
 				return False
