@@ -1,10 +1,13 @@
 #signature class
 
+from i2cdev import *
+
 all_devices = []
 
 class Signature:
 	def __init__(self, raw):
 		self.raw = raw
+		self.device = []
 
 		hbytes = [raw[i:i+2] for i in range(0, len(raw), 2)]
 		self.sladdr = int(hbytes[0], 16)
@@ -15,10 +18,41 @@ class Signature:
 
 		all_devices.append(self)
 
-	def dump(self):
+	def identify(self):
+		#self.hexdump()	#for now
+		#return
+
+		global DEVICE_LIBRARY
+		print(len(DEVICE_LIBRARY))
+		print('searching for device w addr {} ({} total devices)'.format(self.sladdr, len(DEVICE_LIBRARY[self.sladdr])))
+		for dev in enumerate(DEVICE_LIBRARY[self.sladdr]):
+			if(__match(self, dev)):
+				self.device = dev
+				return True
+			else:
+				return False
+
+	#checks if the signature matches a given i2cdev device
+	def __match(self, dev):
+		assert self.sladdr == dev.sladdr
+
+		#match whoami regs
+		for whoami in enumerate(dev.whoami):
+			addr = whoami[0]
+			if (self.regs[addr] != whoami[1]):
+				return False
+			if(not self.stable[addr]):
+				return False
+		return True
+			
+	def printinfo(self):
+		assert(self.device)
+		self.device.printinfo()
+
+	def hexdump(self):
 
 		#print slave addr
-		print("device 0x%02X:" % self.sladdr)
+		print("slave addr = 0x%02X:" % self.sladdr)
 
 		#print header
 		print("\t", end="")

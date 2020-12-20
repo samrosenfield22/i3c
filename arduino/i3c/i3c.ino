@@ -18,10 +18,6 @@
 #define START_SCAN_RESP "ok"
 #define DONE_RESP       "done"
 
-//serial monitor printf
-char printbuf[161];
-#define smprintf(...) do {sprintf(printbuf, __VA_ARGS__); Serial.print(printbuf);} while(0)
-
 enum ERRCODE
 {
     ERRC_BUS_LINES_LO = 0,
@@ -69,13 +65,15 @@ void setup()
   //digitalWrite(13, HIGH);
 
   //////
-  /*warn(WARNC_WRONG_LOGIC_LVL);
+  warn(WARNC_WRONG_LOGIC_LVL);
   uint8_t regmap[MAX_REGISTERS];
   bool stable[MAX_REGISTERS];
-  stable[8] = false;
-  send_signature(0xDE, regmap, stable, 0x20);
+  stable[5] = false;
+  stable[8] = true;
+  regmap[8] = 0x77;
+  send_signature(0x73, regmap, stable, 0x20);
   send_signature(0xFF, regmap, stable, 0x20);
-  Serial.println(DONE_RESP);*/
+  Serial.println(DONE_RESP);
 
 
   //electrical test
@@ -160,14 +158,8 @@ void i2c_scan(void)
 
             //dump registers
             send_signature(a, regmap, stable, reg_cnt);
-            //hexdump(regmap, stable, reg_cnt);
     }
   }
-
-  /*if(total)
-      smprintf("\n\nfound %d devices\n\n", total);
-  else
-      smprintf("no devices found!\n\n");*/
 }
 
 bool i2c_is_device_up(uint8_t sladdr)
