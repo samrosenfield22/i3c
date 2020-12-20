@@ -65,7 +65,7 @@ void setup()
   //digitalWrite(13, HIGH);
 
   //////
-  warn(WARNC_WRONG_LOGIC_LVL);
+  //warn(WARNC_WRONG_LOGIC_LVL);
   uint8_t regmap[MAX_REGISTERS];
   bool stable[MAX_REGISTERS];
   stable[5] = false;
