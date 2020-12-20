@@ -1,5 +1,7 @@
 #signature class
 
+all_devices = []
+
 class Signature:
 	def __init__(self, raw):
 		self.raw = raw
@@ -10,6 +12,8 @@ class Signature:
 
 		self.regs = [0 if i=='??' else int(i,16) for i in hbytes]
 		self.stable = [i!='??' for i in hbytes]
+
+		#all_devices.append(self)
 
 	def dump(self):
 

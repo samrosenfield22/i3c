@@ -4,6 +4,7 @@ import serial
 import serial.tools.list_ports
 import time
 from enum import Enum
+import pdb
 
 from signature import * 
 
@@ -68,10 +69,13 @@ def handle_signature(sig):
 	sig = sig.removesuffix("\r\n")
 
 	s = Signature(sig)
-	s.dump()
+	all_devices.append(s)
+	#s.dump()
 
 #if it starts with "err", it's an error
 #if it starts with "signature", etc etc
+
+#returns true if the response is "done" (tells main code to break out of the loop)
 def handle_response(resp):
 	if(resp.find("err")==0):
 		errmes = getMessageFromSpec(resp, "err ", ErrorMessages)
@@ -84,22 +88,40 @@ def handle_response(resp):
 		if(confirm[0] == 'y'):
 			print('confirmed!')
 			ser.write(b'ok\n')
+			return False
 		else:
 			exit(0)
 	elif(resp.find("signature")==0):
 		handle_signature(resp)
+		return False
+	elif(resp == "done\r\n"):
+		return True
 	else:
 		print(resp)
 
 #############################################################
+#   main application
+#############################################################
 
+#connect to the arduino, command it to start scanning
 ser = connect_to_duiner()
 if(not start_scan(ser)):
 	print('arduino didn\'t give the expect respond to \"go duiner go\". maybe it has the wrong firmware loaded?')
 	exit()
 
+#handle arduino's responses as it scans (signatures, warnings/errors, etc). loops until we receive the "done" response
 while 1:
 	resp = ser.readline().decode()
-	handle_response(resp)
+	if(handle_response(resp)):
+		break
+
+#this is where we'll identify each device. for now just dump them all
+#pdb.set_trace()
+#print(len(all_devices))
+print('\nfound {} devices:'.format(len(all_devices)))
+for i,dev in enumerate(all_devices):	#works with i,dev, but not with just dev ??
+	dev.dump()
+
+print('all done!')
 
 ser.close()

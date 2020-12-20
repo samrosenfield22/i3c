@@ -81,16 +81,22 @@ void setup()
   digitalWrite(13, HIGH);
 
   //////
-  /*uint8_t regmap[MAX_REGISTERS];
+  uint8_t regmap[MAX_REGISTERS];
   bool stable[MAX_REGISTERS];
   stable[8] = false;
-  send_signature(0xDE, regmap, stable, 0x20);*/
+  send_signature(0xDE, regmap, stable, 0x20);
+  send_signature(0xFF, regmap, stable, 0x20);
+
+  Serial.println("done");
+
 
   //electrical test
   i2c_bus_test();
 
   //find all i2c devices, dump their register contents
   i2c_scan();
+
+  Serial.println("done");
 
   while(1);
 }
