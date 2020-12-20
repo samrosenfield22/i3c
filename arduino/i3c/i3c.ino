@@ -81,6 +81,7 @@ void setup()
   digitalWrite(13, HIGH);
 
   //////
+  warn(WARNC_WRONG_LOGIC_LVL);
   uint8_t regmap[MAX_REGISTERS];
   bool stable[MAX_REGISTERS];
   stable[8] = false;
@@ -93,12 +94,10 @@ void setup()
   //electrical test
   i2c_bus_test();
 
-  //find all i2c devices, dump their register contents
+  //find all i2c devices, send their signatures to the app
   i2c_scan();
 
   Serial.println("done");
-
-  while(1);
 }
 
 void loop()
