@@ -5,6 +5,8 @@ import serial.tools.list_ports
 import time
 from enum import Enum
 
+from signature import * 
+
 ErrorMessages = [
 	"either a device is pulling SDA/SCL low, or the line(s) are disconnected!",
 	"read abnormal bus voltages.\nis something pulling the bus low? are there pullup resistors?"
@@ -65,30 +67,8 @@ def handle_signature(sig):
 	sig = sig.removeprefix("signature ")
 	sig = sig.removesuffix("\r\n")
 
-	hbytes = [sig[i:i+2] for i in range(0, len(sig), 2)]
-	sladdr = int(hbytes[0], 16)
-	print('\nfound slave device at address 0x%02X:\n' % sladdr, end="")
-	#print('0x%02X' % sladdr)
-	hbytes = hbytes[1:len(hbytes)]
-
-	#print header
-	print("\t", end="")
-	for i in range(0, 0x10):
-		if(i==8):
-			print("  ", end="")
-		print('%1X  ' % i, end="")
-
-	#print hex
-	for i,reg in enumerate(hbytes):
-		if(i % 16 == 0):
-			print("\n 0x%02X\t" % i, end="")
-		elif(i % 8 == 0):
-			print("  ", end="")
-
-		if(reg == "??"):
-			print(reg, '', end="")
-		else:
-			print('%02X ' % int(reg, 0x10), end="")
+	s = Signature(sig)
+	s.dump()
 
 #if it starts with "err", it's an error
 #if it starts with "signature", etc etc
