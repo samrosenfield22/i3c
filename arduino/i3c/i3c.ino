@@ -11,18 +11,16 @@
 #define LOGIC_MAX_THRESH_3V3 (743)  //3.3 * 1.1
 #define LOGIC_MIN_THRESH_3V3 (608)  //3.3 * 0.9
 
+//command/response library
+#define START_SCAN_CMD  "go duiner go"
+#define CLEAR_WARN_CMD "warn ok"
+
+#define START_SCAN_RESP "ok"
+#define DONE_RESP       "done"
 
 //serial monitor printf
 char printbuf[161];
 #define smprintf(...) do {sprintf(printbuf, __VA_ARGS__); Serial.print(printbuf);} while(0)
-
-/*typedef struct i2cdev_s
-{
-    const char *name;
-    uint8_t addr;
-    uint8_t whoami_ct, config_ct, write_ct;
-    uint8_t *regs;
-} i2cdev;*/
 
 enum ERRCODE
 {
@@ -50,45 +48,34 @@ void send_signature(uint8_t sladdr, uint8_t *regmap, bool *stable, uint16_t end_
 void print_hex_leading(uint8_t b);
 void error(ERRCODE err);
 void warn(WARNCODE warn);
+bool expect_cmd(const char *expected);
 
 //
-/*i2cdev TPS65023 =
-{
-    "TPS65023",
-    0x48,
-    1, 2, 0,
-    (uint8_t[]) {
-      0x00, 0x23, //whoami
-      0x05, 0x08, 0x06, 0x80  //config
-    }
-};*/
 void setup()
 {
 
-  pinMode(13, OUTPUT);
-  digitalWrite(13, LOW);
+  //pinMode(13, OUTPUT);
+  //digitalWrite(13, LOW);
   
   //init stuff
   Wire.begin();
   Serial.begin(9600);
   delay(100);
   
-  while(!Serial.available());
-  String startcmd = Serial.readString();
-  if(startcmd != "go duiner go\n")
+  //waits for app to send the start command, responds
+  if(!expect_cmd(START_SCAN_CMD))
       while(1);
-  Serial.println("ok");
-  digitalWrite(13, HIGH);
+  Serial.println(START_SCAN_RESP);
+  //digitalWrite(13, HIGH);
 
   //////
-  warn(WARNC_WRONG_LOGIC_LVL);
+  /*warn(WARNC_WRONG_LOGIC_LVL);
   uint8_t regmap[MAX_REGISTERS];
   bool stable[MAX_REGISTERS];
   stable[8] = false;
   send_signature(0xDE, regmap, stable, 0x20);
   send_signature(0xFF, regmap, stable, 0x20);
-
-  Serial.println("done");
+  Serial.println(DONE_RESP);*/
 
 
   //electrical test
@@ -97,7 +84,8 @@ void setup()
   //find all i2c devices, send their signatures to the app
   i2c_scan();
 
-  Serial.println("done");
+  //tell app we're done scanning
+  Serial.println(DONE_RESP);
 }
 
 void loop()
@@ -281,17 +269,14 @@ void error(ERRCODE err)
 void warn(WARNCODE warn)
 {
   Serial.println("warn " + String(warn));
-  while(!Serial.available());
-  String warnresp = Serial.readString();
-  if(warnresp != "ok\n")
+  if(!expect_cmd(CLEAR_WARN_CMD))
       while(1);
 }
 
-/*bool warn_prompt(const char *str)
+//reads a cmd, checks if it's the one we expected
+bool expect_cmd(const char *expected)
 {
-  smprintf("--- warning: %s ---\n", str);
-  smprintf("enter \'y\' to continue...\n");
-
-  while(!Serial.available());
-  return Serial.read()=='y';
-}*/
+    while(!Serial.available());
+    String cmd = Serial.readString();
+    return(cmd == expected+String("\n"));
+}

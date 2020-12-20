@@ -7,14 +7,22 @@ import time
 
 from signature import * 
 
+#command/response library
+START_SCAN_CMD =	"go duiner go"
+CLEAR_WARN_CMD =	"warn ok"
+
+START_SCAN_RESP =	"ok"
+DONE_RESP =			"done"
+
 class Arduino:
+
+	
 
 	#attempts to find the serial port with a device w manufacturer string containing "Arduino", and open that port.
 	#returns True/False if the port was successfully opened
 	def connect(self):
 		self.portname = self.__get_portname()
 		if(not self.portname):
-			print("error: no duiner found")
 			return False
 		print('arduino found at port:', self.portname)
 
@@ -36,40 +44,43 @@ class Arduino:
 	def disconnect(self):
 		self.port.close()
 
+	def scan(self):
+		self.__write(START_SCAN_CMD)
+		response = self.__read()
+		good = (response == START_SCAN_RESP)
+		if(not good):
+			print('arduino didn\'t give the expect respond to \"go duiner go\". maybe it has the wrong firmware loaded?')
+		return good
+
 	#reads the response, takes the appropriate action
-	#returns a ResponseType
+	#returns a value encoding the type of response
 	def interpret(self):
 		resp = self.__read()
 
-		if(resp.find("err")==0):
+		if(resp.startswith("err")):
 			errmes = getMessageFromSpec(resp, "err ", ErrorMessages)
 			print('\nerror:', errmes)
-			return RESP_FAIL
-		elif(resp.find("warn")==0):
+			return ARD_FAIL
+		elif(resp.startswith("warn")):
 			warnmes = getMessageFromSpec(resp, "warn ", WarnMessages)
-			print('\n---warning: ', warnmes, ' ---')
-			confirm = input('press \'y\' to continue   ')
-			if(confirm and confirm[0] == 'y'):
+			print('\n--- warning: ', warnmes, ' ---')
+			confirm = input('enter \'y\' to continue   ')
+			if(confirm == 'y'):
 				print('confirmed!')
-				self.__write('ok')
-				return RESP_OTHER
+				self.__write(CLEAR_WARN_CMD)
+				return ARD_OTHER
 			else:
-				return RESP_FAIL
-		elif(resp.find("signature")==0):
+				return ARD_FAIL
+		elif(resp.startswith("signature")):
 			resp = resp.removeprefix("signature ")
 			Signature(resp)	#adds the signature to a list
-			return RESP_OTHER
-		elif(resp == "done"):
-			return RESP_DONE
+			return ARD_OTHER
+		elif(resp == DONE_RESP):
+			return ARD_DONE
 		else:
 			print('unknown response:')
 			print(resp)
 			exit()
-
-	def scan(self):
-		self.__write('go duiner go')
-		response = self.__read()
-		return (response == 'ok')
 
 
 	################ private methods ################
@@ -87,6 +98,10 @@ class Arduino:
 		ports = serial.tools.list_ports.comports()
 		theport = list(filter(lambda p:p.manufacturer.find('Arduino')!=-1, ports))
 		if not theport:
+			print("error: no duiner found")
+			return []
+		elif len(theport)>1:
+			print('error: multiple duiners found')
 			return []
 		else:
 			return theport[0].name
@@ -94,9 +109,9 @@ class Arduino:
 
 #types of arduino responses 
 #class ResponseType(Enum):
-RESP_DONE = 1
-RESP_FAIL = 2
-RESP_OTHER = 3
+ARD_DONE = 1
+ARD_FAIL = 2
+ARD_OTHER = 3
 
 ErrorMessages = [
 	"either a device is pulling SDA/SCL low, or the line(s) are disconnected!",
