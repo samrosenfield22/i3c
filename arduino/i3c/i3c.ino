@@ -13,10 +13,15 @@
 
 //command/response library
 #define START_SCAN_CMD  "go duiner go"
-#define CLEAR_WARN_CMD "warn ok"
+#define CLEAR_WARN_CMD  "warn ok"
+#define WRITE_REG_CMD   "setreg"
+#define READ_REG_CMD    "getreg"
 
 #define START_SCAN_RESP "ok"
 #define DONE_RESP       "done"
+#define WRITE_GOOD_RESP "write good"
+#define WRITE_BAD_RESP  "write bad"
+#define READ_REG_RESP   "read "
 
 enum ERRCODE
 {
@@ -34,6 +39,7 @@ enum WARNCODE
 void i2c_bus_test(void);
 void i2c_scan(void);
 bool i2c_is_device_up(uint8_t sladdr);
+bool i2c_write_reg_check(uint8_t sladdr, uint8_t reg, uint8_t val);
 void i2c_write_reg(uint8_t sladdr, uint8_t regaddr, uint8_t val);
 void i2c_write_byte_stream(uint8_t sladdr, int len, uint8_t *bytes);
 uint8_t i2c_read_reg(uint8_t sladdr, uint8_t regaddr);
@@ -42,9 +48,11 @@ bool i2c_check_reg_val(uint8_t *v, uint8_t sladdr, uint8_t reg, uint8_t expected
 void send_signature(uint8_t sladdr, uint8_t *regmap, bool *stable, uint16_t end_addr);
 //bool warn_prompt(const char *str);
 void print_hex_leading(uint8_t b);
+uint8_t chars2hex(char *s);
 void error(ERRCODE err);
 void warn(WARNCODE warn);
 bool expect_cmd(const char *expected);
+String get_cmd(void);
 
 //
 void setup()
@@ -88,7 +96,36 @@ void setup()
 
 void loop()
 {
-  
+    String cmd = get_cmd();
+    if(cmd.startsWith(WRITE_REG_CMD))
+    {
+        char buf[20];
+        cmd.toCharArray(buf, 19);
+        char *space = strchr(buf, ' ')+1;
+
+        //scan cmd, reg sladdr, reg, val
+        uint8_t sladdr = chars2hex(space);  space+=2;
+        uint8_t reg = chars2hex(space);  space+=2;
+        uint8_t val = chars2hex(space);
+        
+        //write the register val, tell the app if it worked or not
+        bool status = i2c_write_reg_check(sladdr, reg, val);
+        Serial.println(status? WRITE_GOOD_RESP : WRITE_BAD_RESP);
+    }
+    else if(cmd.startsWith(READ_REG_CMD))
+    {
+        char buf[20];
+        cmd.toCharArray(buf, 19);
+        char *space = strchr(buf, ' ')+1;
+
+        //scan cmd, reg sladdr, reg, val
+        uint8_t sladdr = chars2hex(space);  space+=2;
+        uint8_t reg = chars2hex(space);
+        
+        //write the register val, tell the app if it worked or not
+        uint8_t val = i2c_read_reg(sladdr, reg);
+        Serial.println(READ_REG_RESP + String(val));
+    }
 }
 
 //////////////////////////////////////////////////////////
@@ -166,6 +203,13 @@ bool i2c_is_device_up(uint8_t sladdr)
 {
   Wire.beginTransmission(sladdr);
   return (Wire.endTransmission()==0);
+}
+
+//write the reg, then read it back and confirm
+bool i2c_write_reg_check(uint8_t sladdr, uint8_t reg, uint8_t val)
+{
+    i2c_write_reg(sladdr, reg, val);
+    return i2c_check_reg_val(NULL, sladdr, reg, val);
 }
 
 void i2c_write_reg(uint8_t sladdr, uint8_t reg, uint8_t val)
@@ -252,6 +296,17 @@ void print_hex_leading(uint8_t b)
     Serial.print(b, HEX);
 }
 
+//converts 2 chars representing a hex value to an int. must be uppercase
+uint8_t chars2hex(char *s)
+{
+    char c = *s;
+    uint8_t hex = (c<10)? c : (c-'A'+10);
+    s++; c=*s;
+    hex <<= 3;
+    hex += (c<10)? c : (c-'A'+10);
+    return hex;
+}
+
 void error(ERRCODE err)
 {
   Serial.println("err " + String(err));
@@ -268,7 +323,14 @@ void warn(WARNCODE warn)
 //reads a cmd, checks if it's the one we expected
 bool expect_cmd(const char *expected)
 {
+    //return(get_cmd() == expected+String("\n"));
+  return(get_cmd() == expected);
+}
+
+String get_cmd(void)
+{
     while(!Serial.available());
     String cmd = Serial.readString();
-    return(cmd == expected+String("\n"));
+    cmd[cmd.length()-1] = '\0'; //remove the newline
+    return cmd;
 }

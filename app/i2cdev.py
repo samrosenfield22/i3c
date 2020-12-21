@@ -1,5 +1,7 @@
 #
 
+from arduino import *
+
 import pdb
 
 DEVICE_LIBRARY = []
@@ -23,6 +25,18 @@ class I2cdev:
 
 		global DEVICE_LIBRARY
 		DEVICE_LIBRARY.append(self)
+
+	def activate(self, duiner):
+
+		#write all config registers
+		for i,cfg in enumerate(self.config):
+			if(not duiner.write_reg(self.sladdr, cfg[0], cfg[1])):
+				print('Failed readback after writing to register 0x%02X' % cfg[0])
+				return False
+
+		#read/write to action registers depending on the device dtype
+		#i.e. if it's a sensor, we'll read them, if it's an output device like a switcher, write to them
+		return True
 
 	def printinfo(self):
 		print('{} ({}) @ 0x%02x'.format(self.name, self.dtype) % self.sladdr)

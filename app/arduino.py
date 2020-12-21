@@ -10,9 +10,14 @@ from signature import *
 #command/response library
 START_SCAN_CMD =	"go duiner go"
 CLEAR_WARN_CMD =	"warn ok"
+WRITE_REG_CMD =		"setreg"
+READ_REG_CMD =    	"getreg"
 
 START_SCAN_RESP =	"ok"
 DONE_RESP =			"done"
+WRITE_GOOD_RESP =	"write good"
+WRITE_BAD_RESP =	"write bad"
+READ_REG_RESP =   	"read"
 
 class Arduino:
 
@@ -82,6 +87,22 @@ class Arduino:
 			print(resp)
 			exit()
 
+	#
+	def write_reg(self, sladdr, reg, val):
+		self.__write('%s %02X%02X%02X' % WRITE_REG_CMD % sladdr % reg % val)
+		resp = self.__read()
+		if(resp == WRITE_GOOD_RESP):
+			return True
+		else:
+			if(resp != WRITE_BAD_RESP):
+				print('Unknown response to register write: %s' % resp)
+			return False
+
+	def read_reg(self, sladdr, reg):
+		self.__write('%s %02X%02X' % READ_REG_CMD % sladdr % reg)
+		resp = self.__read()
+		resp = resp.removesuffix(READ_REG_RESP + ' ')
+		return int(resp)
 
 	################ private methods ################
 
