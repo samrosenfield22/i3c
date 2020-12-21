@@ -12,17 +12,11 @@ from i2cdev import *
 def activate(dev):
 	print('can\'t do that yet')
 
-def manufacturer(dev, devid):
-	if(dev):
-		print(dev.manufacturer)
-	else:
-		print('Device %d wasn\'t recognized' % devid)
+def manufacturer(dev):
+	print(dev.manufacturer)
 
-def datasheet(dev, devid):
-	if(dev):
-		print(dev.datasheet)
-	else:
-		print('Device %d wasn\'t recognized' % devid)
+def datasheet(dev):
+	print(dev.datasheet)
 
 def helpmenu():
 	for i,opt in enumerate(command_tbl):
@@ -73,9 +67,11 @@ for i,sig in enumerate(all_devices):
 
 command_tbl = [
 	[['a', 'activate'], True, 'activate(dev)', 'Configures the device, interacts with it'],
-	[['m', 'mfg', 'manufacturer'], True, 'manufacturer(dev, devid)', 'Prints the device manufacturer'],
-	[['s', 'ds', 'datasheet'], True, 'datasheet(dev, devid)', 'Prints the url to the device\'s datasheet'],
+	#[['g', 'generate'], True, , 'Generates source code to use the device']
+	[['m', 'mfg', 'manufacturer'], True, 'manufacturer(dev)', 'Prints the device manufacturer'],
+	[['s', 'ds', 'datasheet'], True, 'datasheet(dev)', 'Prints the url to the device\'s datasheet'],
 	[['d', 'hex', 'dump', 'hexdump'], True, 'sig.hexdump()', 'Prints the device\'s slave address and register contents'],
+	#[['f', 'format'], True, , ]
 	[['h', 'help'], False, 'helpmenu()', 'Prints this help menu'],
 	[['e', 'exit'], False, 'break', 'Exits the interactive terminal']
 ]
@@ -83,7 +79,12 @@ command_tbl = [
 print('\nlaunching interactive terminal...')
 while 1:
 	cmd = input('\n>>> ')
+
+	sig = []
+	dev = []
+	arg = []
 	if(' ' in cmd):
+
 		cmd,arg = cmd.split(' ')
 		if(arg != 'all'):
 			devid = int(arg)
@@ -94,29 +95,31 @@ while 1:
 			sig = all_devices[devid]
 			dev = sig.device
 
-	"""if(cmd == 'activate'):
-		print('can\'t do that yet')
-	elif(cmd == 'mfg' or cmd == 'datasheet'):
-		if(dev):
-			if(cmd == 'mfg'):
-				print(dev.manufacturer)
-			else:
-				print(dev.datasheet)
-		else:
-			print('Device %d wasn\'t recognized' % devid)
-	elif(cmd == 'hexdump'):
-		sig.hexdump()
-	elif(cmd == 'help'):
-		print('aww, did baby want a real help menu?? look at the source (app/app.py) to see available commands')
-	elif(cmd == 'exit'):
-		break;
-	else:
-		print('unknown command: ', cmd)"""
-
+	cmd_recognized = False
 	for i,opt in enumerate(command_tbl):
 		if(cmd in opt[0]):
+
+			cmd_recognized = True
+
+			#check arg
+			if(opt[1]):
+				if(not arg):
+					print('Missing argument to command %s' % cmd)
+					continue
+				elif(not dev):
+					print('Device %d wasn\'t found in the library' % devid)
+					continue
+			else:
+				if(arg):
+					print('Command %s doesn\'t take arguments' % cmd)
+					continue
+			
+			#execute the command
 			exec(opt[2])
 			break
+
+	if(not cmd_recognized):
+		print('Unrecognized command: %s' % cmd)
 
 print('all done!')
 duiner.disconnect()
